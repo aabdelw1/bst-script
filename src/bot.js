@@ -1,7 +1,7 @@
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 
-async function fetchData() {
-  const url = "https://www.michelinman.com/modules/@dgad/dealer-locator-pages/search/10001"
+async function fetchData(zipcode, page) {
+  const url = `https://www.michelinman.com/modules/@dgad/dealer-locator-pages/search/${zipcode}?page=${page}`
   const headers = {
     "accept": "*/*",
     "accept-language": "en-US,en;q=0.9",
@@ -34,36 +34,66 @@ async function fetchData() {
   }
 }
 
-// Now you can call the async function and handle the result accordingly
-fetchData()
-  .then((data) => {
-    // console.log("Data fetched:", data);
-    toCSV(data)
-  })
-  .catch((error) => {
-    // Handle any errors that occurred during the fetch
-    console.error("Error:", error);
-  });
+async function fetchPagesData(zipcode, totalPages) {
+  const dataForAllPages = [];
+
+  try {
+    for (let page = 1; page <= totalPages; page++) {
+      const data = await fetchData(zipcode, page);
+      dataForAllPages.push(data.dealerLocatorListState.dealers);
+    }
+
+    return dataForAllPages;
+  } catch (error) {
+    console.error("Error fetching data for the pages:", error);
+    throw error;
+  }
+}
+
+(async () => {
+  const zipcode = "10001"; // Replace with the actual zipcode
+
+  // Fetch the initial data for the first page
+  const initialData = await fetchData(zipcode, 1);
+  const totalPages = initialData.dealerLocatorListState.pages.total;
+
+  // Fetch data for the specified number of pages
+  fetchPagesData(zipcode, totalPages)
+    .then((dataForAllPages) => {
+      console.log(dataForAllPages.length)
+      toCSV(dataForAllPages);
+    })
+    .catch((error) => {
+      // Handle errors if necessary
+    });
+})();
 
 
 
 function toCSV(data) {
-  if (!data || !data.dealerLocatorListState || !data.dealerLocatorListState.dealers) {
+  if (!data) {
     // If the necessary data is not available, return an empty array or handle the error accordingly
     return [];
   }
 
-  const dataArray = data.dealerLocatorListState.dealers
-
   const csvWriter = createCsvWriter({
-    path: 'output.csv', // Change 'output.csv' to your desired output file path
+    path: 'output.csv',
+    header: [
+      { id: 'distance', title: 'Distance' },
+      { id: 'title', title: 'Title' },
+      { id: 'streetAddress', title: 'Street Address' },
+      { id: 'addressLocality', title: 'City'},
+      { id: 'postalCode', title: 'Postal Code' },
+      { id: 'addressState', title: 'Address State' },
+    ], 
   });
 
-  const csvData = dataArray.map((item) => {
+  const csvData = data.map((item) => {
     return {
-      distance: item.distance,
-      title: item.title,
-      streetAddress: item.address.streetAddress,
+      distance: item.distance.toFixed(2),
+      title:  capitalizeFirstLetters(item.title),
+      streetAddress: capitalizeFirstLetters(item.address.streetAddress),
+      addressLocality: capitalizeFirstLetters(item.address.addressLocality),
       postalCode: item.address.postalCode,
       addressState: item.address.addressState,
     };
@@ -73,5 +103,13 @@ function toCSV(data) {
       .writeRecords(csvData)
       .then(() => console.log('CSV file was written successfully'))
       .catch((err) => console.error('Error writing CSV file:', err));
+}
 
+function capitalizeFirstLetters(inputString) {
+  const words = inputString.toLowerCase().split(' ');
+  for (let i = 0; i < words.length; i++) {
+    words[i] = words[i].charAt(0).toUpperCase() + words[i].slice(1);
+  }
+
+  return words.join(' ');
 }
