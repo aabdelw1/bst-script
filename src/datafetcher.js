@@ -1,5 +1,7 @@
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 
+const zipcode = "10001";
+
 async function fetchData(zipcode, page) {
   const url = `https://www.michelinman.com/modules/@dgad/dealer-locator-pages/search/${zipcode}?page=${page}`
   const headers = {
@@ -40,7 +42,9 @@ async function fetchPagesData(zipcode, totalPages) {
   try {
     for (let page = 1; page <= totalPages; page++) {
       const data = await fetchData(zipcode, page);
-      dataForAllPages.push(data.dealerLocatorListState.dealers);
+      for (const dealer of data.dealerLocatorListState.dealers) {
+        dataForAllPages.push(dealer);
+      }
     }
 
     return dataForAllPages;
@@ -51,8 +55,6 @@ async function fetchPagesData(zipcode, totalPages) {
 }
 
 (async () => {
-  const zipcode = "10001"; // Replace with the actual zipcode
-
   // Fetch the initial data for the first page
   const initialData = await fetchData(zipcode, 1);
   const totalPages = initialData.dealerLocatorListState.pages.total;
@@ -60,7 +62,6 @@ async function fetchPagesData(zipcode, totalPages) {
   // Fetch data for the specified number of pages
   fetchPagesData(zipcode, totalPages)
     .then((dataForAllPages) => {
-      console.log(dataForAllPages.length)
       toCSV(dataForAllPages);
     })
     .catch((error) => {
@@ -75,7 +76,6 @@ function toCSV(data) {
     // If the necessary data is not available, return an empty array or handle the error accordingly
     return [];
   }
-
   const csvWriter = createCsvWriter({
     path: 'output.csv',
     header: [
