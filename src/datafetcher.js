@@ -1,4 +1,5 @@
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
+const fs = require('fs');
 
 const zipcode = "10001";
 
@@ -76,8 +77,11 @@ function toCSV(data) {
     // If the necessary data is not available, return an empty array or handle the error accordingly
     return [];
   }
+
+  const filename = 'output.csv';
+  const fileExists = fs.existsSync(filename);
   const csvWriter = createCsvWriter({
-    path: 'output.csv',
+    path: filename,
     header: [
       { id: 'distance', title: 'Distance' },
       { id: 'title', title: 'Title' },
@@ -85,7 +89,8 @@ function toCSV(data) {
       { id: 'addressLocality', title: 'City'},
       { id: 'postalCode', title: 'Postal Code' },
       { id: 'addressState', title: 'Address State' },
-    ], 
+    ],
+    append: fileExists
   });
 
   const csvData = data.map((item) => {
